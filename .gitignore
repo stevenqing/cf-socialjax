@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+wandb/
+checkpoints/
+*.log
+run.log
+autoresearch/worktree-*/
+autoresearch/shared/.*.lock
+autoresearch/shared/best_code/
+.vscode/
+*.egg-info/
+dist/
+build/
+.eggs/
