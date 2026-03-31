@@ -231,6 +231,8 @@ class Territory_open(MultiAgentEnv):
         self.agents = list(range(num_agents))#, dtype=jnp.int16)
         self._agents = jnp.array(self.agents, dtype=jnp.int16) + len(Items)
         self.shared_rewards = shared_rewards
+        self.inequity_aversion = False
+        self.smooth_rewards = False
 
         # self.agents = [str(i) for i in list(range(num_agents))]
 
