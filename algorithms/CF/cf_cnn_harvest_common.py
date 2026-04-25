@@ -197,12 +197,24 @@ def compute_cf_shaped_reward(
 
     # --- Eq.7: Generate counterfactual rewards for all agents ---
     # For each agent i, enumerate all possible actions while keeping others fixed
+    all_actions = jnp.arange(action_dim, dtype=actions_joint.dtype)  # [action_dim]
+
     def cf_for_agent(agent_id):
-        # cf_actions: [action_dim, batch, num_agents]
-        cf_actions = jnp.tile(actions_joint[jnp.newaxis, :, :], (action_dim, 1, 1))
-        all_actions = jnp.arange(action_dim, dtype=actions_joint.dtype)
-        agent_actions = jnp.tile(all_actions[:, jnp.newaxis], (1, batch_size))
-        cf_actions = cf_actions.at[:, :, agent_id].set(agent_actions)
+        # One-hot mask for this agent: [num_agents]
+        one_hot = jax.nn.one_hot(agent_id, num_agents, dtype=jnp.float32)
+
+        # Get agent's actual action via dot product (avoids traced index issues): [batch]
+        actual_action = jnp.dot(actions_joint.astype(jnp.float32), one_hot)  # [batch]
+
+        # Difference between each possible action and actual: [action_dim, batch]
+        diff = all_actions[:, jnp.newaxis].astype(jnp.float32) - actual_action[jnp.newaxis, :]
+
+        # One-hot contribution: only modifies agent_id's action
+        # [action_dim, batch, num_agents]
+        one_hot_contrib = diff[:, :, jnp.newaxis] * one_hot[jnp.newaxis, jnp.newaxis, :]
+
+        # Counterfactual actions: [action_dim, batch, num_agents]
+        cf_actions = (actions_joint[jnp.newaxis, :, :].astype(jnp.float32) + one_hot_contrib).astype(actions_joint.dtype)
 
         # Expand obs: [action_dim, batch, num_agents, H, W, C]
         obs_expanded = jnp.tile(obs_joint[jnp.newaxis], (action_dim, 1, 1, 1, 1, 1))
@@ -255,6 +267,7 @@ class Transition(NamedTuple):
     log_prob: jnp.ndarray
     obs: jnp.ndarray
     info: jnp.ndarray
+    cf_intrinsic: jnp.ndarray  # CF intrinsic reward for advantage modification
 
 
 # ===========================================================================
@@ -344,6 +357,11 @@ def make_train(config):
         cf_alpha = float(num_agents - 1)
     else:
         cf_alpha = config.get("CF_ALPHA", 1.0)
+
+    # CF prosocial bonus (via reward model predictions)
+    cf_prosocial_alpha = config.get("CF_PROSOCIAL_ALPHA", 10.0)
+    # CF advantage modification coefficient
+    cf_advmod_coef = config.get("CF_ADVMOD_COEF", 1.0)
 
     rew_shaping_anneal = optax.linear_schedule(
         init_value=0.,
@@ -475,13 +493,13 @@ def make_train(config):
                 obs_joint = last_obs  # [num_envs, num_agents, H, W, C]
 
                 # Build joint actions: [num_envs, num_agents]
-                actions_joint = jnp.stack(env_act, axis=1)  # [num_envs, num_agents]
+                actions_joint = jnp.stack([a.squeeze() for a in env_act], axis=1)  # [num_envs, num_agents]
 
                 # Build joint rewards: [num_envs, num_agents]
                 rewards_joint = reward  # [num_envs, num_agents]
 
                 # Compute CF shaped reward
-                shaped_reward, regret = compute_cf_shaped_reward(
+                _, regret = compute_cf_shaped_reward(
                     reward_model.apply,
                     rm_train_state.params,
                     obs_joint,
@@ -490,6 +508,19 @@ def make_train(config):
                     action_dim,
                     cf_alpha,
                 )
+                cf_intrinsic = -regret  # CF intrinsic for advantage modification
+
+                # Compute prosocial bonus via CF reward model predictions
+                predicted_rewards = reward_model.apply(rm_train_state.params, obs_joint, actions_joint)  # [batch, num_agents]
+                prosocial_mask = 1.0 - jnp.eye(num_agents)  # [num_agents, num_agents]
+                # For agent i: sum predicted rewards of all other agents
+                prosocial_bonus = jnp.sum(
+                    predicted_rewards[:, jnp.newaxis, :] * prosocial_mask[jnp.newaxis, :, :],
+                    axis=-1
+                ) / (num_agents - 1)  # [batch, num_agents]
+
+                # Final reward = extrinsic + prosocial (CF intrinsic goes to advantages)
+                final_reward = rewards_joint + cf_prosocial_alpha * prosocial_bonus
 
                 # --- UPDATE REWARD MODEL (Eq.6) ---
                 # Train generative model on actual (obs, actions, rewards)
@@ -500,33 +531,36 @@ def make_train(config):
                 rm_loss, rm_grads = jax.value_and_grad(rm_loss_fn)(rm_train_state.params)
                 rm_train_state = rm_train_state.apply_gradients(grads=rm_grads)
 
-                # Use shaped reward instead of raw reward
+                # Use final reward (extrinsic + prosocial) for training
                 if config["PARAMETER_SHARING"]:
-                    info = jax.tree_map(lambda x: x.reshape((config["NUM_ACTORS"])), info)
-                    # Batchify shaped reward: [num_agents, num_envs] -> [num_agents * num_envs]
-                    shaped_reward_batch = jnp.transpose(shaped_reward, (1, 0)).reshape(-1)
+                    info = jax.tree_util.tree_map(lambda x: x.reshape((config["NUM_ACTORS"])), info)
+                    # Batchify reward and CF intrinsic: [num_agents, num_envs] -> [num_agents * num_envs]
+                    final_reward_batch = jnp.transpose(final_reward, (1, 0)).reshape(-1)
+                    cf_intrinsic_batch = jnp.transpose(cf_intrinsic, (1, 0)).reshape(-1)
                     transition = Transition(
                         batchify_dict(done, env.agents, config["NUM_ACTORS"]).squeeze(),
                         action,
                         value,
-                        shaped_reward_batch,
+                        final_reward_batch,
                         log_prob,
                         obs_batch,
                         info,
+                        cf_intrinsic_batch,
                     )
                 else:
                     transition = []
                     done = [v for v in done.values()]
                     for i in range(num_agents):
-                        info_i = {key: jax.tree_map(lambda x: x.reshape((config["NUM_ACTORS"]),1), value[:,i]) for key, value in info.items()}
+                        info_i = {key: jax.tree_util.tree_map(lambda x: x.reshape((config["NUM_ACTORS"]),1), value[:,i]) for key, value in info.items()}
                         transition.append(Transition(
                             done[i],
                             env_act[i],
                             value[i],
-                            shaped_reward[:, i],  # Use CF shaped reward per agent
+                            final_reward[:, i],  # extrinsic + prosocial per agent
                             log_prob[i],
                             obs_batch[i],
                             info_i,
+                            cf_intrinsic[:, i],  # CF intrinsic for advantage modification
                         ))
                 runner_state = (train_state, rm_train_state, env_state, obsv, update_step, rng)
                 return runner_state, transition
@@ -573,6 +607,8 @@ def make_train(config):
                 return advantages, advantages + traj_batch.value
             if config["PARAMETER_SHARING"]:
                 advantages, targets = _calculate_gae(traj_batch, last_val)
+                # CF advantage modification: add CF intrinsic to advantages
+                advantages = advantages + cf_advmod_coef * traj_batch.cf_intrinsic
             else:
                 advantages = []
                 targets = []
@@ -697,7 +733,7 @@ def make_train(config):
                     print(f"METRIC: env_step={step} returned_episode_returns={float(ret):.4f}")
 
             update_step = update_step + 1
-            metric = jax.tree_map(lambda x: x.mean(), metric)
+            metric = jax.tree_util.tree_map(lambda x: x.mean(), metric)
             if config["PARAMETER_SHARING"]:
                 metric["update_step"] = update_step
                 metric["env_step"] = update_step * config["NUM_STEPS"] * config["NUM_ENVS"]
@@ -745,7 +781,7 @@ def single_run(config):
     print(f"FINAL_METRIC:{final_returns:.4f}")
     print("** Saving Results **")
     filename = f'{config["ENV_NAME"]}_cf_seed{config["SEED"]}'
-    train_state = jax.tree_map(lambda x: x[0], out["runner_state"][0])
+    train_state = jax.tree_util.tree_map(lambda x: x[0], out["runner_state"][0])
     save_path = f"./checkpoints/cf/{filename}.pkl"
     if config["PARAMETER_SHARING"]:
         save_path = f"./checkpoints/cf/{filename}.pkl"

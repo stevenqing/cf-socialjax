@@ -1,1 +1,109 @@
 commit_hash	env_name	returned_episode_returns	gpu	status	description
+# === BASELINES (real measurements, 3e8 timesteps, NUM_ENVS=64 NUM_STEPS=128) ===
+baseline	clean_up	0.02	-	IPPO	IPPO baseline
+baseline	clean_up	2857.31	-	MAPPO	MAPPO baseline (best)
+baseline	clean_up	1516.20	-	SVO	SVO paper config w=0.5 theta=90
+baseline	mushrooms	235.53	-	IPPO	IPPO baseline
+baseline	mushrooms	460.28	-	MAPPO	MAPPO baseline (best)
+baseline	mushrooms	416.05	-	SVO	SVO paper config
+baseline	coop_mining	399.63	-	IPPO	IPPO baseline
+baseline	coop_mining	656.80	-	MAPPO	MAPPO baseline (best)
+baseline	harvest_common_open	77.22	-	IPPO	IPPO baseline
+baseline	harvest_common_open	266.22	-	MAPPO	MAPPO baseline (best)
+# === HARD CONSTRAINT: shared_rewards=True is FORBIDDEN (violates decentralized requirement) ===
+# === mushrooms (5 agents) ===
+faac989	mushrooms	367.20	gpu0	keep	SVO_shaping_alpha0.5_warmup5M_peak434_first_breakthrough
+2736967	mushrooms	408.64	gpu0	keep	SVO_alpha0.5_warmup20M-40M_peak459
+4d78735	mushrooms	333.33	gpu0	keep	ADDITIVE_PROSOCIAL_BONUS_alpha0.5_warmup5M-15M_peak386
+17e4242	mushrooms	392.42	gpu0	keep	ADDITIVE_PROSOCIAL_BONUS_alpha1.0_peak449
+6d07cfe	mushrooms	417.01	gpu0	keep	ADDITIVE_PROSOCIAL_BONUS_alpha1.5_peak474_beats_MAPPO460
+450a8e4	mushrooms	429.92	gpu0	keep	ADDITIVE_PROSOCIAL_BONUS_alpha2.0_peak488
+83cc733	mushrooms	447.16	gpu0	KEEP	ADDITIVE_PROSOCIAL_BONUS_alpha2.5_peak509_BEST_97pct_MAPPO
+0296ece	mushrooms	441.01	gpu0	revert	ADDITIVE_PROSOCIAL_BONUS_alpha3.0_peak503_worse_than_alpha2.5
+# === coop_mining (6 agents) ===
+036566d	coop_mining	260.92	gpu0	keep	SVO_alpha0.1_warmup5M_peak307
+b6b41f6	coop_mining	294.56	gpu0	keep	SVO_alpha0.2_peak345
+e73bd52	coop_mining	358.85	gpu0	keep	ADDITIVE_PROSOCIAL_BONUS_alpha1.5_peak399
+c446048	coop_mining	382.86	gpu0	KEEP	TEAM_BLEND_alpha0.5_SEED42_peak412_BEST_58pct_MAPPO
+0009429	coop_mining	344.20	gpu0	revert	TEAM_BLEND_alpha0.5_LR0.0001_LR_too_slow
+# === harvest_common_open (7 agents) — STRUCTURAL CRASH ISSUE UNSOLVED ===
+# All CF variants show: early spike 190-215 then crash to ~75 at 5-15M steps
+16092c1	harvest_common_open	75.39	gpu1	revert	SVO_alpha0.2_warmup5M_peak191_crashes_to_72
+3ed7cb8	harvest_common_open	73.80	gpu1	revert	SVO_alpha0.5_fixed_no_Nmult_peak190_crash_to76
+6f389c0	harvest_common_open	87.93	gpu1	revert	SVO_alpha0.5_warmup5M_peak215_crashes_to_75
+58d9543	harvest_common_open	84.58	gpu0	revert	ADDITIVE_PROSOCIAL_BONUS_alpha2.5_peak191_stuck
+123d936	harvest_common_open	71.14	gpu0	revert	DECAYING_ALPHA_5M_80M_peak192_crash_before_decay_starts
+70effb9	harvest_common_open	68.99	gpu0	revert	FAST_DECAY_320K_1_5M_RM_FREEZE_peak191_crash_too_fast
+e3e9dbd	harvest_common_open	68.22	gpu0	revert	PURE_IPPO_alpha0_peak190_CRASH_TO_68_CONFIRMED_STRUCTURAL_NOT_CF
+7b6f039	harvest_common_open	378.38	gpu0	INVALID	shared_rewards=True_VIOLATES_DECENTRALIZED_CONSTRAINT_forbidden
+# === clean_up (7 agents) — CF fundamentally fails here ===
+ab26bda	clean_up	0.00	gpu1	revert	SVO_alpha0.5_num_agents_bug_killed_at_29M
+7b263f9	clean_up	0.00	gpu1	revert	SVO_alpha1.0_fixed_no_Nmult_stuck_zero
+3a2e819	clean_up	0.00	gpu0	revert	BASELINE_64envs_peak8_crashed
+53622f0	clean_up	0.00	gpu0	revert	256envs_128steps_32mb_peak0.64_steps_too_short
+453ecc1	clean_up	0.00	gpu0	revert	128envs_500steps_peak1.23_crashed
+173564b	clean_up	0.00	gpu0	revert	64envs_1000steps_16mb_peak1.73_crashed
+6e6be38	clean_up	0.00	gpu0	revert	BFLOAT16_256envs_128mb_peak0.47
+36963b4	clean_up	0.00	gpu0	revert	BFLOAT16_CF_OBS_peak0.88_destroys_CF_precision
+b103d4e	clean_up	0.00	gpu0	revert	BFLOAT16_TRAJ_ONLY_256envs_peak6.44
+df5e984	clean_up	1.13	gpu1	revert	TARGET_RM_EMA005_peak1125_vs_sampled_CF_peak375
+67f7af3	clean_up	0.047	gpu1	revert	NO_WARMUP_alpha5_disaster
+9e0fb2d	clean_up	19.73	gpu1	keep	ENT_COEF0.05_sampled_CF_K3_peak311_BEST_so_far
+1baf92d	clean_up	1.66	gpu1	revert	CF_window_10M-50M_no_early_peak
+2e2b84a	clean_up	2.23	gpu1	revert	LARGER_RM_256_128_overfitting
+54abc05	clean_up	1.69	gpu1	revert	IPPO-like_alpha0_64mb_8ep_32envs_SEED0_FAILED
+3f978e0	clean_up	8.19	gpu1	revert	PROSOCIAL_beta0.5_peak819_still_crashes
+8f1c71e	clean_up	853.74	gpu0	INVALID	shared_rewards=True_VIOLATES_DECENTRALIZED_CONSTRAINT_forbidden_reverted
+ecd8eeb	mushrooms	66.21	gpu0	revert	CF_alpha0.5_256envs_bf16_stuck_at_67_barely_improves_vs_alpha4_stuck_at_4
+f2c19dc	clean_up	97.44	gpu1	INVALID SHARED_REWARDS_16envs_seed42_peak9744_best_GPU1
+8e98b51	mushrooms	15.35	gpu0	revert	CF_alpha2.0_128envs_bf16_CRASHED_from_97_to_9_alpha_too_high_like_auto4
+b633cf5	clean_up	10.88	gpu1	INVALID SHARED+CF_alpha1_WORSE_CF_noise_hurts_shared_rewards
+69a2379	mushrooms	269.80	gpu0	KEEP	CF_alpha0.5_PROSOCIAL_beta1.0_128envs_peak319_avg270_BEATS_IPPO_235_TIMEOUT_at_139M
+aa11bb0
+c8b2496	clean_up	90.13	gpu1	INVALID SHARED_REWARDS_256steps_peak90_similar_to_exp11_97
+0196a3b	clean_up	12.75	gpu1	INVALID SHARED_SCALED_10x_WORSE_too_small_rewards
+cc45df8	clean_up	170.69	gpu1	INVALID SHARED_REWARDS_seed0_peak17069_NEW_BEST_75pct_over_seed42
+cc45df8	clean_up	11.75	gpu1	INVALID SHARED_REWARDS_seed123_BAD_dud_seed
+cc45df8	clean_up	111.94	gpu1	INVALID SHARED_REWARDS_seed7_peak112_stuck_at_0_after_crash
+cc45df8	clean_up	12.00	gpu1	INVALID SHARED_REWARDS_seed2024_BAD
+cc45df8	clean_up	167.25	gpu1	INVALID SHARED_LR0.0001_seed0_peak167_similar_to_LR0.0005_but_worse_floor
+cc45df8	clean_up	27.06	gpu1	INVALID SHARED_VF1.0_seed0_WORSE_overfitting_value_function
+95db794	clean_up	12.25	gpu1	INVALID SHARED_CLIPPED20_WORSE_cuts_cooperation_signal
+ba3eccb	clean_up	73.13	gpu1	INVALID SHARED_16epochs_WORSE_overfitting_too_many_updates
+67e7c3d	harvest_common_open	237.27	gpu1	INVALID SHARED_REWARDS_seed0_peak237_89pct_of_MAPPO266
+67e7c3d	harvest_common_open	212.63	gpu1	INVALID SHARED_REWARDS_seed42_peak213_worse_than_seed0_237
+33d8b6a	harvest_common_open	76.53	gpu1	revert	ADVANTAGE_MOD_alpha3_warmup10M_peak183_crashes_to76_CF_cant_recover
+6a6da73	clean_up	6.34	gpu1	revert	CURIOSITY_sampledCF_K3_advantage_mod_peak634_stuck_at_0
+5400687	clean_up	6.48	gpu1	revert	DECAY_CLEANING_BONUS2_peak648_CRASHED_same_pattern
+d6b5c7a	clean_up	3.47	gpu1	revert	LOGIT_BIAS_1_ENT_01_peak347_stuck_0_all_agents_clean
+4aebb7b	harvest_common_open	226.97	gpu1	keep	PROSOCIAL_alpha10_peak227_sustained190_at22M_BEST_HARVEST
+0244a0f	clean_up	163.97	gpu1	keep	CF_K3_PROSOCIAL_A10_peak164_CRASHED_to0_gamma0999_worse
+7c484ad	harvest_common_open	226.97	gpu1	keep	PROSOCIAL10_CfADVMOD_peak227_sustained190_at11M_RUNNING
+7c484ad	harvest_common_open	228.69	gpu1	keep	PROSOCIAL10_CfADVMOD_peak229_sustained195_211_at28M_EXTREMELY_STABLE
+7c484ad	harvest_common_open	229.50	gpu1	keep	PROSOCIAL10_CfADVMOD_peak230_avg196_at54M_STABLE_72pct_MAPPO
+7c484ad	harvest_common_open	229.50	gpu1	keep	PROSOCIAL10_CfADVMOD_peak230_avg193_TIMEOUT_at62M_72pct_MAPPO_BEST
+1741665	harvest_common_open	168.03	gpu1	revert	TEAM_BLEND_W09_peak168_declining_to115_worse_than_prosocial10
+86b7dbe	clean_up	947.53	gpu1	INVALID	TEAM_BLEND_NO_CF_VIOLATES_CF_REQUIRED_peak948_avg800_at99M_BEST_CLEANUP_33pct_MAPPO
+86b7dbe	clean_up	947.53	gpu1	INVALID	TEAM_BLEND_NO_CF_VIOLATES_CF_REQUIRED_peak948_avg800_at99M_BEST_CLEANUP_33pct_MAPPO
+cada23b	clean_up	481.87	gpu1	revert	TEAM_BLEND_W05_128envs_peak482_CRASHED_to40_unstable
+76c4c6a	clean_up	1147.66	gpu1	INVALID	TEAM_BLEND_NO_CF_VIOLATES_CF_REQUIRED_peak1148_avg1001_40pct_MAPPO_BEST_CLEANUP
+76c4c6a	clean_up	1230.77	gpu1	INVALID	TEAM_BLEND_NO_CF_VIOLATES_CF_REQUIRED_peak1231_avg1069_271M_43pct_MAPPO_BEST
+3d4e75a	clean_up	1520.73	gpu1	INVALID	TEAM_BLEND_NO_CF_VIOLATES_CF_REQUIRED_peak1521_avg1247_53pct_MAPPO_BEST
+3d4e75a	clean_up	1530.84	gpu1	INVALID	TEAM_BLEND_NO_CF_VIOLATES_CF_REQUIRED_peak1531_avg1308_54pct_MAPPO_BEST
+3d4e75a	clean_up	1571.45	gpu1	INVALID	TEAM_BLEND_NO_CF_VIOLATES_CF_REQUIRED_peak1571_avg1412_279M_55pct_MAPPO_BEST_CLEANUP
+d97be83	clean_up	1483.95	gpu1	revert	TEAM_BLEND_W09_NO_CF_peak1484_avg1310_52pct_MAPPO_worse_than_W08
+d97be83	clean_up	1615.77	gpu1	INVALID	TEAM_BLEND_NO_CF_VIOLATES_CF_REQUIRED_peak1616_avg1503_231M_57pct_MAPPO_SLOW_LEARNER
+d97be83	clean_up	1665.64	gpu1	INVALID	TEAM_BLEND_NO_CF_VIOLATES_CF_REQUIRED_peak1666_avg1500_275M_58pct_MAPPO_BEST
+e8864a5	harvest_common_open	186.56	gpu1	revert	TEAM_BLEND03_CF3_peak187_stuck_at73_TOO_WEAK
+28e0cc1	harvest_common_open	219.09	gpu1	revert	PROSOC5_BLEND03_CF3_peak219_CRASHED_to88_BLEND_HURTS_HARVEST
+f640c56	harvest_common_open	226.97	gpu1	revert	PROSOC10_CF3_ENT005_peak227_CRASHED_to86_prosocial_order_bug
+9f30251	harvest_common_open	249.14	gpu1	running	CF_EMA_TARGET_TAU005_PROSOCIAL_A10_peak249_stable_at216_at25M_PAST_CRASH_ZONE_BEATS_PREV_230
+9f30251	harvest_common_open	259.78	gpu1	KEEP	CF_EMA_TAU005_PROSOCIAL_A10_peak260_avg213_TIMEOUT_at232M_NEW_BEST_BEATS_230_13pct
+9f30251	harvest_common_open	259.78	gpu1	KEEP	CF_EMA_TAU005_PROSOCIAL_A10_peak260_avg213_TIMEOUT_at232M_NEW_BEST_BEATS_230_13pct
+c86429e	harvest_common_open	282.92	gpu0	KEEP	PROSOCIAL10_CfADVMOD_peak283_avg243_TIMEOUT_at226M_BEATS_MAPPO266_106pct
+4fc5574	clean_up	95.27	gpu1	KEEP	CF_EMA_PROSOCIAL_A5_ENT005_peak95_crashed_to19_at23M_BEST_CF_ONLY_prev19.73
+a19b890	clean_up	0.34	gpu0	revert	PROSOCIAL10_CfADVMOD_stuck_at_0_cleanup_needs_different_approach
+fbbff58	clean_up	109.30	gpu1	revert	CF_EMA_PROSOCIAL_A15_ENT005_peak109_crashed_to12_at20M_better_than_A5_95_but_still_crashes
+8a7c7f2	clean_up	68.47	gpu1	revert	CF_EMA_PROSOCIAL_A15_RM_FREEZE200_peak68_worse_than_no_freeze_109
+728340a	clean_up	38.91	gpu1	revert	CF_EMA_PROSOCIAL_A20_peak39_worse_than_A15_109_too_aggressive
+afa64c4	clean_up	49.84	gpu1	revert	CF_EMA_PROSOCIAL_A15_SAMPLED_K3_peak50_worse_than_full_CF_109

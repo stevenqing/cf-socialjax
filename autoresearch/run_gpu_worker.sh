@@ -55,7 +55,7 @@ while true; do
         ANTHROPIC_AUTH_TOKEN="0ed2bd422a494115900375d3095578f6.xvYnx5wzrCUKgC3E" \
         claude --model GLM-5.1 \
             --dangerously-skip-permissions \
-            --print \
+            -p \
             "You are an autonomous ML research agent optimizing the CF algorithm for SocialJax.
 
 TARGET: ${ENV_NAME} | GPU: ${GPU_ID} | Experiment #${EXPERIMENT_NUM}

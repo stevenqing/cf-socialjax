@@ -4,8 +4,9 @@
 #
 # Uses flock to prevent concurrent write corruption between GPU workers.
 
-LOCKFILE="/home/shuqing/SocialJax/autoresearch/shared/.results.lock"
-RESULTS="/home/shuqing/SocialJax/autoresearch/shared/results.tsv"
+SHARED_DIR="/home/shuqing/cf-socialjax/autoresearch/shared"
+LOCKFILE="${SHARED_DIR}/.results.lock"
+RESULTS="${SHARED_DIR}/results.tsv"
 
 LINE="$1"
 

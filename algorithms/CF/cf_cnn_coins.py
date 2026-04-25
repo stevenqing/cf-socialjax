@@ -502,7 +502,7 @@ def make_train(config):
 
                 # Use shaped reward instead of raw reward
                 if config["PARAMETER_SHARING"]:
-                    info = jax.tree_map(lambda x: x.reshape((config["NUM_ACTORS"])), info)
+                    info = jax.tree_util.tree_map(lambda x: x.reshape((config["NUM_ACTORS"])), info)
                     # Batchify shaped reward: [num_agents, num_envs] -> [num_agents * num_envs]
                     shaped_reward_batch = jnp.transpose(shaped_reward, (1, 0)).reshape(-1)
                     transition = Transition(
@@ -518,7 +518,7 @@ def make_train(config):
                     transition = []
                     done = [v for v in done.values()]
                     for i in range(num_agents):
-                        info_i = {key: jax.tree_map(lambda x: x.reshape((config["NUM_ACTORS"]),1), value[:,i]) for key, value in info.items()}
+                        info_i = {key: jax.tree_util.tree_map(lambda x: x.reshape((config["NUM_ACTORS"]),1), value[:,i]) for key, value in info.items()}
                         transition.append(Transition(
                             done[i],
                             env_act[i],
@@ -697,7 +697,7 @@ def make_train(config):
                     print(f"METRIC: env_step={step} returned_episode_returns={float(ret):.4f}")
 
             update_step = update_step + 1
-            metric = jax.tree_map(lambda x: x.mean(), metric)
+            metric = jax.tree_util.tree_map(lambda x: x.mean(), metric)
             if config["PARAMETER_SHARING"]:
                 metric["update_step"] = update_step
                 metric["env_step"] = update_step * config["NUM_STEPS"] * config["NUM_ENVS"]
@@ -746,7 +746,7 @@ def single_run(config):
     print(f"FINAL_METRIC:{final_returns:.4f}")
     print("** Saving Results **")
     filename = f'{config["ENV_NAME"]}_cf_seed{config["SEED"]}'
-    train_state = jax.tree_map(lambda x: x[0], out["runner_state"][0])
+    train_state = jax.tree_util.tree_map(lambda x: x[0], out["runner_state"][0])
     save_path = f"./checkpoints/cf/{filename}.pkl"
     if config["PARAMETER_SHARING"]:
         save_path = f"./checkpoints/cf/{filename}.pkl"

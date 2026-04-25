@@ -24,7 +24,7 @@
 "ANNEAL_LR": True
 "SEED": 30
 "NUM_SEEDS": 1
-"TUNE": True
+"TUNE": False
 
 "REWARD": "individual"
 "GIF_NUM_FRAMES": 250
@@ -45,3 +45,5 @@
 "WANDB_TAGS":
   - CF
   - INDIVIDUAL_REWARD
+"CF_PROSOCIAL_ALPHA": 10.0
+"CF_ADVMOD_COEF": 1.0
